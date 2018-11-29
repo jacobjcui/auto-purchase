@@ -20,31 +20,41 @@ var checkout_delay = 1500;
 var items = [
         {
             keyWord: 'Knit,Panel,Stripe',
+            bannedKeyWord: 'aaa',
             default_item_code: '',
             actual_item_code: '',
             preferSize_1: 'Large',
             preferSize_2: 'Medium',
             preferColor: 'Black',
-            default_item_id: ''
+            default_item_id: '',
+            default_item_style_id: '',
+            default_item_size_id: ''
         },
         {
             keyWord: 'Striped,Rib,Sweatpant',
+            bannedKeyWord: 'aaa',
             default_item_code: '',
             actual_item_code: '',
             preferSize_1: 'Large',
             preferSize_2: 'Medium',
             preferColor: 'Black',
-            default_item_id: ''
+            default_item_id: '',
+            default_item_style_id: '',
+            default_item_size_id: ''            
         },
         {
             keyWord: 'GORE-TEX,6-Panel',
+            bannedKeyWord: 'aaa',
             default_item_code: '',
             actual_item_code: '',
             preferSize_1: 'Large',
-            preferSize_2: 'Medium',
+            preferSize_2: 'N/A',
             preferColor: 'Black',
-            default_item_id: ''
-        }];
+            default_item_id: '',
+            default_item_style_id: '',
+            default_item_size_id: ''
+        }
+];
 
 // dafault means, no color is associated
 var urlToItem = {};
@@ -66,9 +76,15 @@ var retryFetch = async (url, options=null, retry=0) => {
     }
 };
 
-function matchName(itemName, keyWords) {
+function matchName(itemName, keyWords, bannedKeyWords) {
     let name = itemName.toLowerCase().trim();
     let keyWordsList = keyWords.toLowerCase().split(",");
+    let bannedKeyWordList = bannedKeyWord.toLowerCase().split(",");
+    for (let i = 0; i < bannedKeyWordList.length; i ++) {
+        if (name.includes(bannedKeyWordsList[i].trim())) {
+            return false;
+        }
+    }
     for (let i = 0; i < keyWordsList.length; i ++) {
         if (!name.includes(keyWordsList[i].trim())) {
             return false;
@@ -89,17 +105,18 @@ async function mobileAPIRefreshed(respond) {
     let returnValue = false
     for (let toButIndex = 0; toButIndex < items.length; toButIndex ++) {
         keyWord = items[toButIndex].keyWord
+        bannedKeyWord = items[toButIndex].bannedKeyWord
         for (let index = 0; index < newProducts.length; index ++) {
-            let item =newProducts[index];
-            if (item != null && item['name'] != null && matchName(item['name'], keyWord)) {
-                imageNameUrl = item.image_url.split("/");
-                imageName = imageNameUrl[imageNameUrl.length - 1]
-                imageId = imageName.split(".")[0]
-                items[toButIndex].default_item_code = imageId
-                items[toButIndex].default_item_id = item.id
-                returnValue = true
-            }
+        let item =newProducts[index];
+        if (item != null && item['name'] != null && matchName(item['name'], keyWord, bannedKeyWord)) {
+            imageNameUrl = item.image_url.split("/");
+            imageName = imageNameUrl[imageNameUrl.length - 1]
+            imageId = imageName.split(".")[0]
+            items[toButIndex].default_item_code = imageId
+            items[toButIndex].default_item_id = item.id
+            returnValue = true
         }
+    }
     }
     return returnValue;
 }
@@ -124,6 +141,16 @@ async function monitor() {
                 if (style.name === items[i].preferColor) {
                     let tempUrl = style.image_url.split("/")
                     items[i].actual_item_code = tempUrl[tempUrl.length - 1].split(".")[0]
+                    // set item style id and size id
+                    console.log('....matching: \n' + JSON.stringify(items[i]));
+                    items[i].default_item_style_id = style.id;
+                    for (let size of style.sizes) {
+                        if (size.name === items[i].preferSize_1 && size.stock_level > 0) {
+                            items[i].default_item_size_id = size.id;
+                        } else if (size.name === items[i].preferSize_2) {
+                            items[i].default_item_size_id = size.id;
+                        }
+                    }
                 }
             }
         }
@@ -155,65 +182,60 @@ function getUrls() {
         return urls
     }
 
-function start() {
-        let itemUrls = getUrls();
-        let index = 0;
-        loop(itemUrls);
-                
-        async function loop(arr) {
-            addItem(arr[index], function() {
-                index ++;
-                if (index < arr.length) {
-                    loop(arr);
-                } else {
-                    setTimeout(function() {
-                        checkout();
-                    }, 0);
-                }
-            });
+function start() {                
+        // add item to cart using POST method according to item id, style id, size id
+        async function addItem(item, callback) {
+            var headers = {
+                'Accept': '*/*;q=0.5, text/javascript, application/javascript, application/ecmascript, application/x-ecmascript',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Accept-Language': 'zh-CN,zh;q=0.9',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'Origin': 'https://www.supremenewyork.com',
+                'Pragma': 'no-cache',
+                'Referer': 'https://www.supremenewyork.com/shop/tops-sweaters/iqbnz1ios/nmy6a3c7b',
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.102 Safari/537.36',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Cookie': document.cookie
+            }
+
+            console.log('adding item: \n' + JSON.stringify(item));
+
+            var add_to_car_endpoint = 'https://www.supremenewyork.com/shop/' + item.default_item_id + '/add';
+            var st = item.default_item_style_id; // style id
+            var s = item.default_item_size_id; // size id
+            var params = 'utf8=%E2%9C%93&st=' + st + '&s=' + s + '&commit=add+to+cart';
+
+            var request = {
+                method: 'POST',
+                headers: headers,
+                body: params,
+                credentials: 'same-origin',
+                cache: 'no-cache',
+                mode: 'cors',
+                redirect: 'follow', // manual, *follow, error
+                referrer: 'no-referrer', // no-referrer, *client
+            };
+
+            await fetch(add_to_car_endpoint, request);
+            console.log(`added item to cart: (id, style_id, size_id) => (${item.default_item_id}, ${st}, ${s})`);
+            await sleep(150);
         }
 
-        // open new window and add item to cart
-        async function addItem(itemUrl, callback) {
-            wins[itemUrl] = window.open(itemUrl, '_blank');
-            waitTillPageLoad();
-
-            function waitTillPageLoad() {
-                let win = wins[itemUrl];
-
-                if($(win.document).find("#img-main")[0]) {
-                    console.log("page: " + itemUrl +  " opened successfully ....")
-
-                    if ($(win.document).find('select')[0]) {
-                        for(let j = 0; j < $(win.document).find('select')[0].options.length; j ++) {
-                            let select = $(win.document).find('select')[0];
-                            let selected_item = urlToItem[itemUrl];
-                            if (select.options[j].text === (selected_item.preferSize_2)) {
-                                select.selectedIndex = j;
-                            } else if (select.options[j].text === (selected_item.preferSize_1)) {
-                                select.selectedIndex = j;
-                                break
-                            }
-                        }
-                        console.log("selected size for item: " + itemUrl)
-                    }
-
-                    // if sold out, skip
-                    if (win.document.getElementsByName('commit')[0]) {
-                        win.document.getElementsByName('commit')[0].click();
-                    }
-
-                    callback();
-                    
-            } else {
-                setTimeout(function() {
-                        waitTillPageLoad();
-                    }, 10)
-            }        
+        async function loop(arr) {
+            var index = 0;
+            for (index = 0; index < arr.length; index++)
+            await addItem(arr[index], function() {
+                console.log('looped on item ' + index);
+            });
+            setTimeout(function() {
+                checkout();
+            }, 0);
         }        
-    }
 
-}
+        loop(items);
+    }
 
 function payment() {
     //console.log(urls)
