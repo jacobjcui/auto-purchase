@@ -186,6 +186,8 @@ function getUrls() {
 function start() {                
         // add item to cart using POST method according to item id, style id, size id
         async function addItem(item, callback) {
+            if (item.default_item_code == '') return;
+
             var headers = {
                 'Accept': '*/*;q=0.5, text/javascript, application/javascript, application/ecmascript, application/x-ecmascript',
                 'Accept-Encoding': 'gzip, deflate, br',
