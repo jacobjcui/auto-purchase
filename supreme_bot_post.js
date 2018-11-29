@@ -210,7 +210,7 @@ function start() {
 
             await fetch(add_to_car_endpoint, request);
             console.log(`added item to cart: (id, style_id, size_id) => (${item.default_item_id}, ${st}, ${s})`);
-            await sleep(150);
+            //await sleep(150);
         }
 
         async function loop(arr) {

@@ -135,6 +135,7 @@ async function monitor() {
         var startTime = new Date()
         console.log("Detect Page refreshed with endpoint at: " + startTime.toISOString());
         for (let i = 0; i < items.length; i ++) {
+            if (items[i].default_item_id === '') continue
             let itemJsonRespond = await retryFetch("https://www.supremenewyork.com/shop/" + items[i].default_item_id + ".json");
             // getting the real image id by the color
             for (let style of itemJsonRespond.styles) {
