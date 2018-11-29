@@ -19,8 +19,8 @@ var checkout_delay = 1500;
 
 var items = [
         {
-            keyWord: 'Knit,Panel,Stripe',
-            bannedKeyWord: 'aaa',
+            keyWord: 'Knit,Panel',
+            bannedKeyWord: 'Stripe',
             default_item_code: '',
             actual_item_code: '',
             preferSize_1: 'Large',
@@ -79,9 +79,9 @@ var retryFetch = async (url, options=null, retry=0) => {
 function matchName(itemName, keyWords, bannedKeyWords) {
     let name = itemName.toLowerCase().trim();
     let keyWordsList = keyWords.toLowerCase().split(",");
-    let bannedKeyWordList = bannedKeyWord.toLowerCase().split(",");
+    let bannedKeyWordList = bannedKeyWords.toLowerCase().split(",");
     for (let i = 0; i < bannedKeyWordList.length; i ++) {
-        if (name.includes(bannedKeyWordsList[i].trim())) {
+        if (name.includes(bannedKeyWordList[i].trim())) {
             return false;
         }
     }
@@ -107,16 +107,16 @@ async function mobileAPIRefreshed(respond) {
         keyWord = items[toButIndex].keyWord
         bannedKeyWord = items[toButIndex].bannedKeyWord
         for (let index = 0; index < newProducts.length; index ++) {
-        let item =newProducts[index];
-        if (item != null && item['name'] != null && matchName(item['name'], keyWord, bannedKeyWord)) {
-            imageNameUrl = item.image_url.split("/");
-            imageName = imageNameUrl[imageNameUrl.length - 1]
-            imageId = imageName.split(".")[0]
-            items[toButIndex].default_item_code = imageId
-            items[toButIndex].default_item_id = item.id
-            returnValue = true
+            let item =newProducts[index];
+            if (item != null && item['name'] != null && matchName(item['name'], keyWord, bannedKeyWord)) {
+                imageNameUrl = item.image_url.split("/");
+                imageName = imageNameUrl[imageNameUrl.length - 1]
+                imageId = imageName.split(".")[0]
+                items[toButIndex].default_item_code = imageId
+                items[toButIndex].default_item_id = item.id
+                returnValue = true
+            }
         }
-    }
     }
     return returnValue;
 }
